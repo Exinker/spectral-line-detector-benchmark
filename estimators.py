@@ -60,7 +60,7 @@ def estimate_by_integral(
     return score / interval
 
 
-def estimate_by_matched_filter(
+def estimate_by_template(
     spectrum: Spectrum,
     template: Array[R],
 ) -> Array[R]:
