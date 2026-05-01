@@ -1,0 +1,21 @@
+[project]
+name = "scintillation-detection"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "scikit-learn>=1.8.0",
+    "spectrumlab-emulations",
+    "tqdm>=4.67.3",
+]
+
+[tool.uv.sources]
+spectrumlab-emulations = { git = "ssh://git@github.com/Exinker/spectrumlab-emulations.git", branch = "develop" }
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+    "ipympl>=0.10.0",
+    "jupyter>=1.1.1",
+]
