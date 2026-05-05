@@ -6,13 +6,12 @@ import numpy as np
 from sklearn.metrics import roc_curve, roc_auc_score
 from tqdm.notebook import tqdm
 
-from spectrumlab.detectors import Detector
+from spectrumlab.peaks.analyte_peaks.shapes import PeakShape
 from spectrumlab.spectra import Spectrum
-from spectrumlab.types import Array, C, Number, R
-from spectrumlab_emulations.emulations import EmittedSpectrumEmulation
+from spectrumlab.types import Array, Number, R
 
 from configs import DETECTOR
-from emulations import generate_spectrum
+from emulations import emulate_spectrum, setup_emulation
 
 
 def calculate_auc_score(
@@ -106,13 +105,17 @@ def calculate_auc_score(
 
 
 def run_experiment(
-    emulation: EmittedSpectrumEmulation,
+    peak_shape: PeakShape,
     position: Number,
-    concentration: Array[C],
+    amplitude: Array[R],
     estimators: Mapping[str, Callable[[Spectrum], Array[R]]],
     fpr_intercept: Sequence[float],
 ) -> tuple[Mapping[str, Sequence[float]], Mapping[str, Sequence[float]], Mapping[str, Sequence[float]]]:
     fpr_intercept = np.array(fpr_intercept)
+
+    emulation = setup_emulation(
+        peak_shape=peak_shape,
+    )
 
     auc_scores = {}
     fprs = {}
@@ -120,22 +123,25 @@ def run_experiment(
     for key, estimator in tqdm(estimators.items(), desc='Estimators', position=0):
 
         score_h0 = estimator(
-            spectrum=generate_spectrum(
+            spectrum=emulate_spectrum(
                 emulation=emulation,
                 position=position,
                 concentration=0,
             ),
         )
 
-        auc_score = np.zeros(concentration.shape)
-        fpr = np.zeros((concentration.size, fpr_intercept.size))
-        tpr = np.zeros((concentration.size, fpr_intercept.size))
-        for i, value in enumerate(tqdm(concentration, desc=key, position=1, leave=False)):
+        auc_score = np.zeros(amplitude.shape)
+        fpr = np.zeros((amplitude.size, fpr_intercept.size))
+        tpr = np.zeros((amplitude.size, fpr_intercept.size))
+        for i, value in enumerate(tqdm(amplitude, desc=key, position=1, leave=False)):
             score_h1 = estimator(
-                spectrum=generate_spectrum(
+                spectrum=emulate_spectrum(
                     emulation=emulation,
                     position=position,
-                    concentration=value,
+                    concentration=emulation.transform_amplitude_to_concentration(
+                        position=position,
+                        amplitude=value,
+                    ),
                 ),
             )
 
@@ -153,7 +159,7 @@ def run_experiment(
 
 
 def show_experiment(
-    intensity: Array[R],
+    amplitude: Array[R],
     auc_score: Sequence[float],
     fpr: Sequence[float],
     tpr: Sequence[float],
@@ -164,7 +170,7 @@ def show_experiment(
 
     plt.sca(ax_left)
     plt.plot(
-        intensity,
+        amplitude,
         auc_score,
         label=label,
     )
@@ -180,7 +186,7 @@ def show_experiment(
 
     plt.sca(ax_right)
     plt.plot(
-        intensity,
+        amplitude,
         tpr,
         label=[
             'FPR = {:.1f}%'.format(100*level)
@@ -190,11 +196,11 @@ def show_experiment(
     plt.axvline(
         3 * 100 * DETECTOR.config.read_noise / DETECTOR.config.capacity,
         linestyle='--', color='red',
+        label=r'$3 \cdot \sigma_{rd}$',
     )
     plt.xscale('log')
     plt.xlabel('R')
     plt.ylabel('TPR')
     plt.grid(linestyle=':', color='grey')
     plt.legend(loc='upper left')
-
     plt.show()

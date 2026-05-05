@@ -8,7 +8,7 @@ from spectrumlab.spectra import Spectrum
 from spectrumlab.types import Array, Number, R
 
 
-def create_matched_filter(
+def build_matched_filter(
     template: Array[R],
 ) -> Callable[[Array[R]], Array[R]]:
     template = template / np.linalg.norm(template)

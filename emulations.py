@@ -1,5 +1,10 @@
+from typing import Callable
+
 import numpy as np
 
+from spectrumlab.peaks.analyte_peaks.shapes import PeakShape
+from spectrumlab.spectra import Spectrum
+from spectrumlab.types import C, Number
 from spectrumlab_emulations.apertures import Aperture, RectangularApertureShape
 from spectrumlab_emulations.apparatus import Apparatus, VoigtApparatusShape
 from spectrumlab_emulations.devices import Device
@@ -9,8 +14,6 @@ from spectrumlab_emulations.emulations import (
     SpectrumConfig,
     fetch_emulation,
 )
-from spectrumlab.spectra import Spectrum
-from spectrumlab.types import C, Number
 
 from configs import (
     DETECTOR,
@@ -19,30 +22,53 @@ from configs import (
 )
 
 
-EMULATION = fetch_emulation(
-    config=EmittedSpectrumEmulationConfig(
-        device=Device.GRAND2_I,
-        detector=DETECTOR,
-        line=None,
-        apparatus=Apparatus(
-            detector=DETECTOR,
-            shape=VoigtApparatusShape(width=25, asymmetry=0, ratio=0.1),
-        ),
-        aperture=Aperture(
-            detector=DETECTOR,
-            shape=RectangularApertureShape(),
-        ),
-        spectrum=SpectrumConfig(
-            n_numbers=N_NUMBERS,
-            n_frames=1,
-        ),
-        concentration_ratio=1,
-        background_level=0,
-    ),
-)
+def emulate_peak_shape(
+    width: Number,
+    asymmetry: float,
+    ratio: float,
+) -> PeakShape:
+
+    shape = PeakShape(
+        width=width,
+        asymmetry=asymmetry,
+        ratio=ratio,
+    )
+    return shape
 
 
-def generate_spectrum(
+def setup_emulation(
+    peak_shape: PeakShape,
+) -> EmittedSpectrumEmulation:
+
+    emulation = fetch_emulation(
+        config=EmittedSpectrumEmulationConfig(
+            device=Device.GRAND2_I,
+            detector=DETECTOR,
+            line=None,
+            apparatus=Apparatus(
+                detector=DETECTOR,
+                shape=VoigtApparatusShape(
+                    width=peak_shape.width * DETECTOR.pitch,
+                    asymmetry=peak_shape.asymmetry,
+                    ratio=peak_shape.ratio,
+                ),
+            ),
+            aperture=Aperture(
+                detector=DETECTOR,
+                shape=RectangularApertureShape(),
+            ),
+            spectrum=SpectrumConfig(
+                n_numbers=N_NUMBERS,
+                n_frames=1,
+            ),
+            concentration_ratio=1,
+            background_level=0,
+        ),
+    )
+    return emulation
+
+
+def emulate_spectrum(
     emulation: EmittedSpectrumEmulation,
     position: Number,
     concentration: C,
